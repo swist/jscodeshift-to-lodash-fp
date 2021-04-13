@@ -1,0 +1,25 @@
+{
+  "name": "jscodeshift-to-lodash-fp",
+  "version": "1.0.0",
+  "description": "This script makes all your lodash imports modular.",
+  "main": "reorder-args.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swist/jscodeshift-to-lodash-fp.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/swist/jscodeshift-to-lodash-fp/issues"
+  },
+  "homepage": "https://github.com/swist/jscodeshift-to-lodash-fp#readme",
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "jest": "^26.6.3"
+  }
+}
