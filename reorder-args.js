@@ -32,50 +32,90 @@ const CUSTOM_ORDERS = {
   xorBy: [2, 0, 1],
   xorWith: [2, 0, 1],
   zipWith: [2, 0, 1],
+  range: [0,1]
 };
 
-const loadArityFile = filename => {
-  return new Set(
-    difference(fs.readFileSync(filename).toString().split('\n'), Object.keys(CUSTOM_ORDERS))
-  );
+const loadArityFile = arity => {
+  return difference(require(`./arity-${arity}`), Object.keys(CUSTOM_ORDERS));
 };
 
-const FIXED_ARITY_OF_ONE = loadArityFile('./FIXED_ARITY_OF_ONE.txt');
-const FIXED_ARITY_OF_TWO = loadArityFile('./FIXED_ARITY_OF_TWO.txt');
-const FIXED_ARITY_OF_THREE = loadArityFile('./FIXED_ARITY_OF_THREE.txt');
+const FIXED_ARITY_OF_ZERO = loadArityFile(0);
+const FIXED_ARITY_OF_ONE = loadArityFile(1);
+const FIXED_ARITY_OF_TWO = loadArityFile(2);
+const FIXED_ARITY_OF_THREE = loadArityFile(3);
 
-const rotateArgsByCycle = (cycle, args) => {
-  if (cycle.length !== args.length) {
-    throw new Error('you are trying to reorder args shorter than the length');
+const ORDERS = {
+  ...Object.fromEntries(FIXED_ARITY_OF_ZERO.map(k => [k, []])),
+  ...Object.fromEntries(FIXED_ARITY_OF_ONE.map(k => [k, [0]])),
+  ...Object.fromEntries(FIXED_ARITY_OF_TWO.map(k => [k, [1, 0]])),
+  ...Object.fromEntries(FIXED_ARITY_OF_THREE.map(k => [k, [1, 2, 0]])),
+  ...CUSTOM_ORDERS,
+};
+
+const ALIASES = require('./aliases');
+
+// TODO: pull this programmatically
+const LONG_REPLACEMENTS = {
+  get: 'getOr',
+  range: 'rangeStep',
+};
+const SHORT_REPLACEMENTS = {
+  orderBy: 'sortBy',
+  flatMap: 'flatten',
+};
+
+class TooFewArgumentsError extends Error {}
+class TooManyArgumentsError extends Error {}
+
+// TODO: pull this from lodash docs
+const EXTRAS = {
+  times: ['identity'],
+  every: ['identity'],
+  sortBy: ['identity'],
+};
+
+const getExtraArgsForAlias = (alias, args) => {
+  if (!ORDERS[alias] && !ALIASES[alias]) {
+    return [];
   }
-  return cycle.map(idx => args[idx]);
+  const name = ALIASES[alias] || alias;
+  const cycle = ORDERS[name];
+  const extraArgs = args.length < cycle.length && EXTRAS[name];
+  return extraArgs || [];
 };
 
 const reorderArgs = (name, args) => {
-  if (CUSTOM_ORDERS[name]?.length) {
-    return rotateArgsByCycle(CUSTOM_ORDERS[name], args);
+  if (!ORDERS[name] && !ALIASES[name]) {
+    return { name, args };
   }
-  if (FIXED_ARITY_OF_ONE.has(name)) {
-    return args;
+  const cycle = ORDERS[name] || ORDERS[ALIASES[name]];
+  if (cycle.length === 0) {
+    return { name, args };
   }
-  if (FIXED_ARITY_OF_TWO.has(name)) {
-    return rotateArgsByCycle([1, 0], args);
+  if (cycle.length < args.length) {
+    if (LONG_REPLACEMENTS[name]) {
+      return reorderArgs(LONG_REPLACEMENTS[name], args);
+    }
+
+    throw new TooManyArgumentsError(`Old code has too many args for ${name}, ${args}`);
+  } else if (cycle.length > args.length) {
+    if (SHORT_REPLACEMENTS[name]) {
+      return reorderArgs(SHORT_REPLACEMENTS[name], args);
+    }
+
+    throw new TooFewArgumentsError(`Old code has too few args for ${name}, ${args}`);
   }
-  if (FIXED_ARITY_OF_THREE.has(name)) {
-    return rotateArgsByCycle([1, 2, 0], args);
-  }
+
+  return { name, args: cycle.map(idx => args[idx]) };
 };
 
 module.exports = {
   FIXED_ARITY_OF_ONE,
   FIXED_ARITY_OF_TWO,
   FIXED_ARITY_OF_THREE,
-  CUSTOM_ORDERS,
+  ORDERS,
   reorderArgs,
-  ALL_METHODS: concat(
-    Object.keys(CUSTOM_ORDERS),
-    FIXED_ARITY_OF_ONE,
-    FIXED_ARITY_OF_TWO,
-    FIXED_ARITY_OF_THREE
-  ),
+  getExtraArgsForAlias,
+  TooFewArgumentsError,
+  ALL_METHODS: concat(Object.keys(ORDERS), Object.keys(ALIASES)),
 };

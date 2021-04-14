@@ -45,3 +45,5 @@ module.exports = function (fileInfo, { jscodeshift: j }, argOptions) {
     quote: 'single',
   });
 };
+
+module.exports.parser = 'flow';
